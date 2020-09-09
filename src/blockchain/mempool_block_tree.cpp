@@ -5,6 +5,13 @@
 
 namespace altintegration {
 
+MemPoolBlockTree::MemPoolBlockTree(AltBlockTree& tree)
+    : temp_vbk_tree_(tree.vbk()),
+      temp_btc_tree_(tree.btc()),
+      stored_atvs_(*this),
+      stored_vtbs_(*this),
+      tree_(&tree) {}
+
 bool MemPoolBlockTree::acceptVbkBlock(const std::shared_ptr<VbkBlock>& blk,
                                       ValidationState& state) {
   return temp_vbk_tree_.acceptBlock(blk, state);
@@ -102,6 +109,9 @@ bool MemPoolBlockTree::acceptVTB(
     return false;
   }
 
+  stored_vtbs_.insert(std::make_shared<VTB>(vtb));
+  VBK_ASSERT(stored_vtbs_.size() == 1);
+
   return true;
 }
 
@@ -119,6 +129,9 @@ bool MemPoolBlockTree::acceptATV(const ATV& atv,
   if (!temp_vbk_tree_.acceptBlock(blockOfProof, state)) {
     return false;
   }
+
+  stored_atvs_.insert(std::make_shared<ATV>(atv));
+  VBK_ASSERT(stored_atvs_.size() == 1);
 
   return true;
 }
@@ -141,18 +154,23 @@ void MemPoolBlockTree::removePayloads(const ATV& atv) {
   temp_vbk_tree_.removeTempSingleBlock(atv.blockOfProof.getHash());
 }
 
-bool MemPoolBlockTree::areStronglyEquivalent(const ATV& atv1, const ATV& atv2) {
+bool MemPoolBlockTree::areStronglyEquivalent(const ATV& atv1,
+                                             const ATV& atv2) const {
   return atv1.transaction.getHash() == atv2.transaction.getHash() &&
          atv1.blockOfProof.getHash() == atv2.blockOfProof.getHash();
 }
 
-bool MemPoolBlockTree::areStronglyEquivalent(const VTB& vtb1, const VTB& vtb2) {
+bool MemPoolBlockTree::areStronglyEquivalent(const VTB& vtb1,
+                                             const VTB& vtb2) const {
   return (vtb1.transaction.bitcoinTransaction ==
           vtb2.transaction.bitcoinTransaction) &&
-         (vtb1.transaction.blockOfProof == vtb2.transaction.blockOfProof);
+         (vtb1.transaction.blockOfProof == vtb2.transaction.blockOfProof) &&
+         (vtb1.transaction.blockOfProofContext ==
+          vtb2.transaction.blockOfProofContext);
 }
 
-bool MemPoolBlockTree::areWeaklyEquivalent(const VTB& vtb1, const VTB& vtb2) {
+bool MemPoolBlockTree::areWeaklyEquivalent(const VTB& vtb1,
+                                           const VTB& vtb2) const {
   bool is_on_the_same_btc_chain = areOnSameChain(vtb1.transaction.blockOfProof,
                                                  vtb2.transaction.blockOfProof,
                                                  tree_->btc());
@@ -174,7 +192,7 @@ bool MemPoolBlockTree::areWeaklyEquivalent(const VTB& vtb1, const VTB& vtb2) {
           is_on_the_same_btc_chain);
 }
 
-int MemPoolBlockTree::weaklyCompare(const VTB& vtb1, const VTB& vtb2) {
+int MemPoolBlockTree::weaklyCompare(const VTB& vtb1, const VTB& vtb2) const {
   VBK_ASSERT_MSG(areWeaklyEquivalent(vtb1, vtb2),
                  "vtbs should be weakly equivalent");
 
@@ -221,6 +239,26 @@ int MemPoolBlockTree::weaklyCompare(const VTB& vtb1, const VTB& vtb2) {
   VBK_ASSERT_MSG(
       areStronglyEquivalent(vtb1, vtb2),
       "if we can not define the best vtb they should be strongly equivalent");
+  return 0;
+}
+
+int MemPoolBlockTree::payloadCompare(const VTB& vtb1, const VTB& vtb2) const {
+  if (areStronglyEquivalent(vtb1, vtb2)) {
+    return 0;
+  }
+
+  if (areWeaklyEquivalent(vtb1, vtb2)) {
+    return weaklyCompare(vtb1, vtb2);
+  }
+
+  return 0;
+}
+
+int MemPoolBlockTree::payloadCompare(const ATV& atv1, const ATV& atv2) const {
+  if (areStronglyEquivalent(atv1, atv2)) {
+    return 0;
+  }
+
   return 0;
 }
 

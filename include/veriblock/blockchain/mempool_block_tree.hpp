@@ -15,10 +15,24 @@
 namespace altintegration {
 
 struct MemPoolBlockTree {
+ private:
+  template <typename payload_t>
+  struct PayloadCmp {
+    PayloadCmp(const MemPoolBlockTree& tree) : tree_(tree) {}
+
+    bool operator()(const std::shared_ptr<payload_t>& p1,
+                    const std::shared_ptr<payload_t>& p2) {
+      return tree_.payloadCompare(*p1, *p2) < 0;
+    }
+
+   private:
+    const MemPoolBlockTree& tree_;
+  };
+
+ public:
   using BtcBlockTree = typename VbkBlockTree::BtcTree;
 
-  MemPoolBlockTree(AltBlockTree& tree)
-      : temp_vbk_tree_(tree.vbk()), temp_btc_tree_(tree.btc()), tree_(&tree) {}
+  MemPoolBlockTree(AltBlockTree& tree);
 
   bool acceptVbkBlock(const std::shared_ptr<VbkBlock>& blk,
                       ValidationState& state);
@@ -49,7 +63,7 @@ struct MemPoolBlockTree {
    * @return
    * Returns true if ATVs strongly equivalent, otherwise returns false
    */
-  bool areStronglyEquivalent(const ATV& atv1, const ATV& atv2);
+  bool areStronglyEquivalent(const ATV& atv1, const ATV& atv2) const;
 
   /**
    * Compares VTBs for the strongly equivalence
@@ -59,7 +73,7 @@ struct MemPoolBlockTree {
    * @return
    * Returns true if VTB strongly equivalent, otherwise returns false
    */
-  bool areStronglyEquivalent(const VTB& vtb1, const VTB& vtb2);
+  bool areStronglyEquivalent(const VTB& vtb1, const VTB& vtb2) const;
 
   /**
    * Compares VTBs for the weakly equivalence
@@ -69,7 +83,7 @@ struct MemPoolBlockTree {
    * @return
    * Returns true if VTBs weakly equivalent, otherwise returns false
    */
-  bool areWeaklyEquivalent(const VTB& vtb1, const VTB& vtb2);
+  bool areWeaklyEquivalent(const VTB& vtb1, const VTB& vtb2) const;
 
   /**
    * Compare two vtbs that are weakly equivalent.
@@ -80,7 +94,29 @@ struct MemPoolBlockTree {
    * Return negative if vtb2 is better
    * Return 0 if they are strongly equal
    */
-  int weaklyCompare(const VTB& vtb1, const VTB& vtb2);
+  int weaklyCompare(const VTB& vtb1, const VTB& vtb2) const;
+
+  /**
+   * Compare two vtbs.
+   * @param[in] first VTB to compare
+   * @param[in] second VTB to compare
+   * @return:
+   * Return positive if vtb1 is better
+   * Return negative if vtb2 is better
+   * Return 0 if they are strongly equal
+   */
+  int payloadCompare(const VTB& vtb1, const VTB& vtb2) const;
+
+  /**
+   * Compare two atvs.
+   * @param[in] first ATV to compare
+   * @param[in] second ATV to compare
+   * @return:
+   * Return positive if atv1 is better
+   * Return negative if atv2 is better
+   * Return 0 if they are strongly equal
+   */
+  int payloadCompare(const ATV& atv1, const ATV& atv2) const;
 
   TempBlockTree<VbkBlockTree>& vbk() { return temp_vbk_tree_; }
 
@@ -102,9 +138,12 @@ struct MemPoolBlockTree {
  private:
   TempBlockTree<VbkBlockTree> temp_vbk_tree_;
   TempBlockTree<BtcBlockTree> temp_btc_tree_;
+  std::set<std::shared_ptr<ATV>, PayloadCmp<ATV>> stored_atvs_;
+  std::set<std::shared_ptr<VTB>, PayloadCmp<VTB>> stored_vtbs_;
+
   AltBlockTree* tree_;
 };
 
 }  // namespace altintegration
 
-#endif
+#endif  
