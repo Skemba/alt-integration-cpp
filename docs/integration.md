@@ -70,6 +70,8 @@ This is needed to communicate Bitcoin and VeriBlock consensus information to Alt
 
 ## 1. Select POP parameters
 
+POP parameters are stored in altintegration::Config. Create instance of this class and fill its fields thoroughly. It consists of Altchain parameters, VeriBlock parameters and Bitcoin parameters.
+
 <code>
 <pre>
 \#include <veriblock/config.hpp>
@@ -86,8 +88,8 @@ Create derived class, and implement pure virtual methods.
 
 Then, go to [POP Parameters](@ref popparameters) page to select correct parameters for your chain.
 
-Then, overwrite default values in AltChainParams and PopRewardsParams if needed. 
-They are protected in PopRewardsParams, so derive that class and set values once in constructor, then use instance of derived type in configs.
+Overwrite default values in AltChainParams and PopRewardsParams if needed. 
+They are marked as "protected" in PopRewardsParams, so derive that class and set values once in constructor, then use instance of derived type in configs.
 
 <code>
 <pre>
@@ -254,14 +256,41 @@ Bootstrapping protocol for BTC/VBK:
 </tr>
 </table>
 
-## 2. Implement PayloadsProvider and BlockBatchAdaptor
+## 2. Define how POP-related data is stored on-disk
 
-See comments on these interfaces. 
+POP-related data consists of 2 parts:
+- *blocks* - this library maintains ALT/VBK/BTC trees, so their blocks must be saved. This can be done via altintegration::SaveAllTrees(altintegration::AltBlockTree&, altintegration::BlockBatchAdaptor&);
+- *payloads* (ATVs/VTBs/VBK block headers) - to perform state change from one block to another, library applies/unapplies corresponding block's payloads side effects. In memory it stores relation `containing block -> vector of IDs`, so to perform full state change, all payloads must be available in library.
+
+#### 2.1 Storing blocks
+
+<code>
+<pre>
+
+#include <veriblock/alt-util.hpp>
+
+void saveBlocks() {
+  auto& tree = *GetPopContext().altTree;
+  altintegration::SaveAllTrees()
+}
+
+</pre>
+</code>
+
+altintegration::BlockBatchAdaptor is a class, which is used by this library to write POP state on disk. It abstracts away 
+
+#### 2.2 Storing payloads
+
+altintegration::PayloadsProvider is a class which is used by this library to fetch bodies of "payloads" (ATV/VTB/VBK blocks) given their IDs.
+
+**When payloads are accepted to altintegration::MemPool, they must be saved on disk, as MemPool may use PayloadsProvider to fetch payloads**. 
+Altchain is responsible for saving payload bodies in their preferred way, with preferred way of serialization.
 
 In this guide we assume derived class is called `PayloadsProviderImpl`.
 
-## 3. Create PopContext instance
 
+## 3. Create PopContext instance
+if context gap is more than 30k
 PopContext is main class-context for all data structures in this library.
 
 <code>
