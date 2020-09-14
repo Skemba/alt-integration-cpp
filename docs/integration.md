@@ -6,34 +6,39 @@ This page describes steps needed to integrate POP protocol into **any** blockcha
 
 # Terms
 
-- Altchain (ALT) - abstract blockchain that inherits security of Bitcoin.
-- VeriBlock (VBK) - VeriBlock blockchain https://www.veriblock.org/.
-- ATV - Cryptographic proof of Altchain block header publication in VeriBlock.
-- VTB - Cryptographic proof of VeriBlock block header publication in Bitcoin.
-- VbkBlock - VeriBlock block header.
-- Payloads - ATV, VTB, VbkBlock sometimes can referred to as "payloads".
-- APM - Altchain POP Miner.
-- VPM - VeriBlock POP Miner.
-- Security Providing Chain (SP Chain) - blockchain, which stores endorsements and is used for providing security for SI chain.
-- Security Inheriting Chain (SI Chain) - blockchain, which consumes endorsements and utilizes properties of SP chain to improve its security.
-- Block Of Proof - block in SP chain, which stores endorsement of block from SI chain.
-- Endorsed Block - block in SI chain, for which we want to improve POP score. More endorsements of a block - higher POP score of this block.
-- Containing Block - block in SI chain, which stores proof of endorsement.
-- VBK TX - VeriBlock transaction.
-- BTC TX - Bitcoin transaction.
-- VBK POP TX - VeriBlock POP transaction.
-- POP Payout Delay - PopRewardsParams::getPopPayoutDelay() - POP payout will occur after this amount of blocks after endorsed block.
-- Endorsement Settlement Interval - PopRewardsParams::getEndorsementSettlementInterval() - validity window for ATV.
-- POP MemPool - memory pool for POP-related payloads. Represents the content of the "next" block after current tip.
-- SPV - simplified payment verification.
-- Finalized/Finalization - this term can be applied to a block or transaction. A block is finalized if it can not be reorganized with very high probability (99.99%). For Bitcoin, finality is equal to 11 blocks. For VeriBlock, finality is 2000 blocks.
+- *Altchain (ALT)* - abstract blockchain that inherits security of Bitcoin.
+- *VeriBlock (VBK)* - VeriBlock blockchain https://www.veriblock.org/.
+- *ATV* - Cryptographic proof of Altchain block header publication in VeriBlock.
+- *VTB* - Cryptographic proof of VeriBlock block header publication in Bitcoin.
+- *VbkBlock* - VeriBlock block header.
+- *Payloads* - ATV, VTB, VbkBlock sometimes can referred to as "payloads".
+- *APM* - Altchain POP Miner.
+- *VPM* - VeriBlock POP Miner.
+- *Security Providing Chain* (SP Chain) - blockchain, which stores endorsements and is used for providing security for SI chain.
+- *Security Inheriting Chain* (SI Chain) - blockchain, which consumes endorsements and utilizes properties of SP chain to improve its security.
+- *Block Of Proof* - block in SP chain, which stores endorsement of block from SI chain.
+- *Endorsed Block* - block in SI chain, for which we want to improve POP score. More endorsements of a block - higher POP score of this block.
+- *Containing Block* - block in SI chain, which stores proof of endorsement.
+- *VBK TX* - VeriBlock transaction - transaction in VeriBlock, which contains VBK proof of ALT header endorsement.
+- *VBK POP TX* (VeriBlock POP transaction) - transaction in VeriBlock, which contains BTC proof of VBK header endorsement.
+- *BTC TX* - Bitcoin transaction.
+- *POP Payout Delay* (PopRewardsParams::getPopPayoutDelay()) - POP payout will occur after this amount of blocks after endorsed block.
+- *Endorsement Settlement Interval* - PopRewardsParams::getEndorsementSettlementInterval() - validity window for ATV.
+- *POP MemPool* - memory pool for POP-related payloads. Represents the content of the "next" block after current tip.
+- *SPV* (simplified payment verification) - a protocol which allows peers to download and use only block headers, but still be able to cryptographically verify account's state.
+- *Finalized/Finalization* - this term can be applied to a block or transaction. A block is finalized if it can not be reorganized with very high probability (99.99%). For Bitcoin, finality is equal to 11 blocks. For VeriBlock, finality is 2000 blocks.
 
 # Overview
 
 ![Network Topology](./img/topology.png)
 
 POP security is built around "endorsing" blocks. 
-When miners want to increase likelyhood of finalizing a block, they "endorse" it by creating "endorsing transaction" in SP chain.
+When miners want to increase likelyhood of block finalization, they "endorse" it by creating "endorsing transaction" in SP chain. 
+
+On practice, single endorsement per *keystone period* is enough to get protection from 51% attacks. 
+There are multiple cases:
+- "shorter endorsed chain" vs "longer chain" - endorsed chain always wins.
+- "endorsed chain" vs "endorsed chain" - timeliness (earlier endorsements have higher score) and continuity (more continuous endorsed keystones) of endorsements affect POP score of each chain. Chain with higher POP score wins.   
 
 In example above, we see 3 chains (top-down): Bitcoin, VeriBlock, Altchain.
 
@@ -75,11 +80,11 @@ altintegration::Config config;
 </pre>
 </code>
 
-Then, go to [POP Parameters](@ref popparameters) page to select correct parameters for your chain.
-
 ### 1.1 Derive AltChainParams and overwrite pure virtual methods
 
 Create derived class, and implement pure virtual methods.
+
+Then, go to [POP Parameters](@ref popparameters) page to select correct parameters for your chain.
 
 Then, overwrite default values in AltChainParams and PopRewardsParams if needed. 
 They are protected in PopRewardsParams, so derive that class and set values once in constructor, then use instance of derived type in configs.
