@@ -68,6 +68,9 @@ This is needed to communicate Bitcoin and VeriBlock consensus information to Alt
 
 # Adding POP protocol
 
+veriblock-pop-cpp library contains SDK for integration of POP protocol into C++ blockchains. 
+If blockchain is written in another language, see our [public C API](#).
+
 ## 1. Select POP parameters
 
 POP parameters are stored in altintegration::Config. Create instance of this class and fill its fields thoroughly. It consists of Altchain parameters, VeriBlock parameters and Bitcoin parameters.
@@ -259,94 +262,15 @@ Bootstrapping protocol for BTC/VBK:
 ## 2. Define how POP-related data is stored on-disk
 
 POP-related data consists of 2 parts:
-- *blocks* - this library maintains ALT/VBK/BTC trees, so their blocks must be saved. This can be done via altintegration::SaveAllTrees(altintegration::AltBlockTree&, altintegration::BlockBatchAdaptor&);
-- *payloads* (ATVs/VTBs/VBK block headers) - to perform state change from one block to another, library applies/unapplies corresponding block's payloads side effects. In memory it stores relation `containing block -> vector of IDs`, so to perform full state change, all payloads must be available in library.
+- *blocks* - this library maintains ALT/VBK/BTC trees in-memory, so after node is restarted, state must be recovered. 
+- *payloads* (ATVs/VTBs/VBK block headers) - to perform state change from one block to another, library applies/unapplies corresponding block's payloads side effects. In memory it stores relation `containing block -> vector of IDs`, so to perform full state change, all payloads must be available in library. To do so, library uses altintegration::PayloadsProvider interface.
 
-#### 2.1 Storing blocks
+#### 2.1 Block storage
 
-<code>
-<pre>
+Altchains must decide how to serialize and store ALT/VBK/BTC block data. 
 
-\#ifndef INTEGRATION_REFERENCE_BTC_BLOCK_BATCH_ADAPTOR_HPP
-\#define INTEGRATION_REFERENCE_BTC_BLOCK_BATCH_ADAPTOR_HPP
-
-\#include <dbwrapper.h>
-\#include <veriblock/storage/block_batch_adaptor.hpp>
-
-namespace VeriBlock {
-
-constexpr const char DB_BTC_BLOCK = 'Q';
-constexpr const char DB_BTC_TIP = 'q';
-constexpr const char DB_VBK_BLOCK = 'W';
-constexpr const char DB_VBK_TIP = 'w';
-constexpr const char DB_ALT_BLOCK = 'E';
-constexpr const char DB_ALT_TIP = 'e';
-
-struct BlockBatchAdaptor : public altintegration::BlockBatchAdaptor {
-    ~BlockBatchAdaptor() override = default;
-
-    static std::pair<char, std::string> vbktip()
-    {
-        return std::make_pair(DB_VBK_TIP, "vbktip");
-    }
-    static std::pair<char, std::string> btctip()
-    {
-        return std::make_pair(DB_BTC_TIP, "btctip");
-    }
-    static std::pair<char, std::string> alttip()
-    {
-        return std::make_pair(DB_ALT_TIP, "alttip");
-    }
-
-    explicit BlockBatchAdaptor(CDBBatch& batch) : batch_(batch)
-    {
-    }
-
-    bool writeBlock(const altintegration::BlockIndex<altintegration::BtcBlock>& value) override
-    {
-        batch_.Write(std::make_pair(DB_BTC_BLOCK, getHash(value)), value);
-        return true;
-    };
-    bool writeBlock(const altintegration::BlockIndex<altintegration::VbkBlock>& value) override
-    {
-        batch_.Write(std::make_pair(DB_VBK_BLOCK, getHash(value)), value);
-        return true;
-    };
-    bool writeBlock(const altintegration::BlockIndex<altintegration::AltBlock>& value) override
-    {
-        batch_.Write(std::make_pair(DB_ALT_BLOCK, getHash(value)), value);
-        return true;
-    };
-
-    bool writeTip(const altintegration::BlockIndex<altintegration::BtcBlock>& value) override
-    {
-        batch_.Write(btctip(), getHash(value));
-        return true;
-    };
-    bool writeTip(const altintegration::BlockIndex<altintegration::VbkBlock>& value) override
-    {
-        batch_.Write(vbktip(), getHash(value));
-        return true;
-    };
-    bool writeTip(const altintegration::BlockIndex<altintegration::AltBlock>& value) override
-    {
-        batch_.Write(alttip(), getHash(value));
-        return true;
-    };
-
-
-private:
-    CDBBatch& batch_;
-
-    template \<typename T\>
-    typename T::hash_t getHash(const T& c)
-    {
-        return c.getHash();
-    }
-};
-
-</pre>
-</code>
+Best time to write blocks on disk is when Altchain writes its own block data on disk. 
+To save block 
 
 altintegration::BlockBatchAdaptor is a class, which is used by this library to write POP state on disk. It abstracts away 
 
