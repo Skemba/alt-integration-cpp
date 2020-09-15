@@ -77,3 +77,5 @@ if(GIT_FOUND)
 
     set(VERSION ${_VERSION})
 endif()
+
+file(WRITE VERSION ${VERSION})

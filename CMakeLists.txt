@@ -15,10 +15,9 @@ endif()
 
 set(LIB_NAME veriblock-pop-cpp)
 set(MAJOR_VERSION 1 CACHE STRING "Major version")
-set(MINOR_VERSION 0 CACHE STRING "Minor version")
-set(PATCH_VERSION 0 CACHE STRING "Patch version")
-set(VERSION "${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION}" CACHE STRING "Version")
-project(${LIB_NAME} VERSION ${VERSION} LANGUAGES C CXX)
+include(cmake/GitVersion.cmake)
+set(VERSION "${MAJOR_VERSION}" CACHE STRING "Version")
+project(${LIB_NAME} VERSION ${MAJOR_VERSION} LANGUAGES C CXX)
 
 include(GNUInstallDirs)
 include(CheckCCompilerFlag)
