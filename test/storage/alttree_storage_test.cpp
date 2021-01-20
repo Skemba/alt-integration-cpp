@@ -41,9 +41,13 @@ TEST_F(AltTreeRepositoryTest, ValidBlocks) {
   // mine txA into VBK 2nd block
   vbkTip = this->popminer->mineVbkBlocks(1);
 
-  auto adaptor = InmemBlockBatch(blockStorage);
-  SaveTree(this->popminer->btc(), adaptor);
-  SaveTree(this->popminer->vbk(), adaptor);
+  auto writer = InmemBlockWriter(blockStorage);
+  ASSERT_TRUE(SaveTree(this->popminer->btc(),
+                       (details::GenericBlockWriter<BtcBlock>&)writer,
+                       state));
+  ASSERT_TRUE(SaveTree(this->popminer->vbk(),
+                       (details::GenericBlockWriter<VbkBlock>&)writer,
+                       state));
 
   VbkBlockTree newvbk{this->vbkparam,
                       this->btcparam,
@@ -79,8 +83,8 @@ TEST_F(AltTreeRepositoryTest, Altchain) {
   AltBlock containingBlock = this->generateNextBlock(chain.back());
   chain.push_back(containingBlock);
 
-  PopData altPayloads1 = this->generateAltPayloads(
-      {tx}, GetRegTestVbkBlock().getHash());
+  PopData altPayloads1 =
+      this->generateAltPayloads({tx}, GetRegTestVbkBlock().getHash());
 
   // mine 1 VBK blocks
   this->popminer->mineVbkBlocks(1);
@@ -91,14 +95,23 @@ TEST_F(AltTreeRepositoryTest, Altchain) {
   EXPECT_TRUE(this->alttree.setState(containingBlock.getHash(), this->state));
   EXPECT_TRUE(this->state.IsValid());
 
-  auto adaptor = InmemBlockBatch(blockStorage);
-  SaveAllTrees(this->alttree, adaptor);
+  auto writer = InmemBlockWriter(blockStorage);
+  ASSERT_TRUE(SaveTree(this->alttree.vbk(),
+                       (details::GenericBlockWriter<VbkBlock>&)writer,
+                       state));
+  ASSERT_TRUE(SaveTree(this->alttree.btc(),
+                       (details::GenericBlockWriter<BtcBlock>&)writer,
+                       state));
+  ASSERT_TRUE(SaveTree(
+      this->alttree, (details::GenericBlockWriter<AltBlock>&)writer, state));
+
   AltBlockTree reloadedAltTree{
       this->altparam, this->vbkparam, this->btcparam, payloadsProvider};
 
   reloadedAltTree.btc().bootstrapWithGenesis(GetRegTestBtcBlock(), this->state);
   reloadedAltTree.vbk().bootstrapWithGenesis(GetRegTestVbkBlock(), this->state);
-  reloadedAltTree.bootstrap(this->state);
+  bool bootstrapped = reloadedAltTree.bootstrap(this->state);
+  ASSERT_TRUE(bootstrapped);
 
   ASSERT_TRUE(LoadTreeWrapper(reloadedAltTree.btc()));
   ASSERT_TRUE(LoadTreeWrapper(reloadedAltTree.vbk()));
@@ -132,8 +145,8 @@ TEST_F(AltTreeRepositoryTest, ManyEndorsements) {
   AltBlock containingBlock = this->generateNextBlock(chain.back());
   chain.push_back(containingBlock);
 
-  PopData altPayloads1 = this->generateAltPayloads(
-      {tx1, tx2}, GetRegTestVbkBlock().getHash());
+  PopData altPayloads1 =
+      this->generateAltPayloads({tx1, tx2}, GetRegTestVbkBlock().getHash());
 
   // mine 1 VBK blocks
   this->popminer->mineVbkBlocks(1);
@@ -144,15 +157,22 @@ TEST_F(AltTreeRepositoryTest, ManyEndorsements) {
   EXPECT_TRUE(this->alttree.setState(containingBlock.getHash(), this->state));
   EXPECT_TRUE(this->state.IsValid());
 
-  auto adaptor = InmemBlockBatch(blockStorage);
-  SaveAllTrees(this->alttree, adaptor);
+  auto writer = InmemBlockWriter(blockStorage);
+  ASSERT_TRUE(SaveTree(this->alttree.vbk(),
+                       (details::GenericBlockWriter<VbkBlock>&)writer,
+                       state));
+  ASSERT_TRUE(SaveTree(this->alttree.btc(),
+                       (details::GenericBlockWriter<BtcBlock>&)writer,
+                       state));
+  ASSERT_TRUE(SaveTree(
+      this->alttree, (details::GenericBlockWriter<AltBlock>&)writer, state));
 
   AltBlockTree reloadedAltTree{
       this->altparam, this->vbkparam, this->btcparam, payloadsProvider};
 
   reloadedAltTree.btc().bootstrapWithGenesis(GetRegTestBtcBlock(), this->state);
   reloadedAltTree.vbk().bootstrapWithGenesis(GetRegTestVbkBlock(), this->state);
-  reloadedAltTree.bootstrap(this->state);
+  ASSERT_TRUE(reloadedAltTree.bootstrap(this->state));
 
   ASSERT_TRUE(LoadTreeWrapper(reloadedAltTree.btc()));
   ASSERT_TRUE(LoadTreeWrapper(reloadedAltTree.vbk()));
@@ -194,9 +214,7 @@ TEST_F(AltTreeRepositoryTest, InvalidBlocks) {
   PopData popData;
   popData.vtbs = vtbs;
   this->fillVbkContext(
-      popData.context,
-      GetRegTestVbkBlock().getHash(),
-      this->popminer->vbk());
+      popData.context, GetRegTestVbkBlock().getHash(), this->popminer->vbk());
   auto containingBlock = this->generateNextBlock(chain.back());
   chain.push_back(containingBlock);
 
@@ -221,14 +239,22 @@ TEST_F(AltTreeRepositoryTest, InvalidBlocks) {
   EXPECT_FALSE(this->state.IsValid());
   validateAlttreeIndexState(this->alttree, containingBlock, popData, false);
 
-  auto adaptor = InmemBlockBatch(blockStorage);
-  SaveAllTrees(this->alttree, adaptor);
+  auto writer = InmemBlockWriter(blockStorage);
+  ASSERT_TRUE(SaveTree(this->alttree.vbk(),
+                       (details::GenericBlockWriter<VbkBlock>&)writer,
+                       state));
+  ASSERT_TRUE(SaveTree(this->alttree.btc(),
+                       (details::GenericBlockWriter<BtcBlock>&)writer,
+                       state));
+  ASSERT_TRUE(SaveTree(
+      this->alttree, (details::GenericBlockWriter<AltBlock>&)writer, state));
+
   AltBlockTree reloadedAltTree{
       this->altparam, this->vbkparam, this->btcparam, payloadsProvider};
 
   reloadedAltTree.btc().bootstrapWithGenesis(GetRegTestBtcBlock(), this->state);
   reloadedAltTree.vbk().bootstrapWithGenesis(GetRegTestVbkBlock(), this->state);
-  reloadedAltTree.bootstrap(this->state);
+  ASSERT_TRUE(reloadedAltTree.bootstrap(this->state));
 
   ASSERT_TRUE(LoadTreeWrapper(reloadedAltTree.btc()));
   ASSERT_TRUE(LoadTreeWrapper(reloadedAltTree.vbk()));

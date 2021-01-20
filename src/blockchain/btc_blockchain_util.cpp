@@ -91,16 +91,16 @@ uint32_t getNextWorkRequired(const BlockIndex<BtcBlock>& prevBlock,
       if (block.getBlockTime() >
           prevBlock.getBlockTime() + params.getPowTargetSpacing() * 2) {
         return nProofOfWorkLimit;
-      } else {
-        // Return the last non-special-min-difficulty-rules-block
-        const BlockIndex<BtcBlock>* pindex = &prevBlock;
-        while (pindex->pprev &&
-               pindex->getHeight() % params.getDifficultyAdjustmentInterval() !=
-                   0 &&
-               pindex->getDifficulty() == nProofOfWorkLimit)
-          pindex = pindex->pprev;
-        return pindex->getDifficulty();
       }
+
+      // Return the last non-special-min-difficulty-rules-block
+      const BlockIndex<BtcBlock>* pindex = &prevBlock;
+      while (pindex->pprev != nullptr &&
+             pindex->getHeight() % params.getDifficultyAdjustmentInterval() !=
+                 0 &&
+             pindex->getDifficulty() == nProofOfWorkLimit)
+        pindex = pindex->pprev;
+      return pindex->getDifficulty();
     }
     return prevBlock.getDifficulty();
   }
@@ -127,7 +127,8 @@ int64_t getMedianTimePast(const BlockIndex<BtcBlock>& prev) {
   auto* pend = &pmedian[medianTimeSpan];
 
   const BlockIndex<BtcBlock>* pindex = &prev;
-  for (int i = 0; i < medianTimeSpan && pindex; i++, pindex = pindex->pprev) {
+  for (int i = 0; i < medianTimeSpan && pindex != nullptr;
+       i++, pindex = pindex->pprev) {
     *(--pbegin) = pindex->getBlockTime();
   }
 
@@ -160,7 +161,8 @@ bool contextuallyCheckBlock(const BlockIndex<BtcBlock>& prev,
                             ValidationState& state,
                             const BtcChainParams& params,
                             bool shouldVerifyNextWork) {
-  if (shouldVerifyNextWork && (block.getDifficulty() != getNextWorkRequired(prev, block, params))) {
+  if (shouldVerifyNextWork &&
+      (block.getDifficulty() != getNextWorkRequired(prev, block, params))) {
     return state.Invalid("btc-bad-diffbits",
                          "incorrect proof of work of BTC block");
   }

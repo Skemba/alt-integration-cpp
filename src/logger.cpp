@@ -3,8 +3,6 @@
 // Distributed under the MIT software license, see the accompanying
 // file LICENSE or http://www.opensource.org/licenses/mit-license.php.
 
-#include <fmt/format.h>
-
 #include <veriblock/assert.hpp>
 #include <veriblock/logger.hpp>
 
@@ -45,21 +43,27 @@ std::string LevelToString(LogLevel l) {
 LogLevel StringToLevel(const std::string& str) {
   if (str == "debug") {
     return LogLevel::debug;
-  } else if (str == "info") {
-    return LogLevel::info;
-  } else if (str == "warn") {
-    return LogLevel::warn;
-  } else if (str == "error") {
-    return LogLevel::error;
-  } else if (str == "critical") {
-    return LogLevel::critical;
-  } else if (str == "off") {
-    return LogLevel::off;
-  } else {
-    throw std::invalid_argument(
-        fmt::sprintf("%s is not valid log level. Expected one of "
-                     "debug/info/warn/error/critical/off"));
   }
+  if (str == "info") {
+    return LogLevel::info;
+  }
+  if (str == "warn") {
+    return LogLevel::warn;
+  }
+  if (str == "error") {
+    return LogLevel::error;
+  }
+  if (str == "critical") {
+    return LogLevel::critical;
+  }
+  if (str == "off") {
+    return LogLevel::off;
+  }
+  throw std::invalid_argument(
+      fmt::format("{} is not valid log level. Expected one of "
+                  "debug/info/warn/error/critical/off"));
+
+  return LogLevel::off;
 }
 
 }  // namespace altintegration

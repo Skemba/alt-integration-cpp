@@ -122,9 +122,6 @@ struct PopTestFixture {
   bool AddPayloads(AltBlockTree& tree,
                    const AltBlock::hash_t& hash,
                    const PopData& pop) {
-    popminer->getPayloadsProvider().write(pop);
-    payloadsProvider.write(pop);
-
     auto index = tree.getBlockIndex(hash);
     EXPECT_TRUE(index);
 
@@ -194,27 +191,23 @@ struct PopTestFixture {
     }
   }
 
-  PublicationData generatePublicationData(const AltBlock& block,
+  PublicationData generatePublicationData(const AltBlock& endorsed,
+                                          uint256 stateRoot = uint256()) {
+    return generatePublicationData(alttree, endorsed, stateRoot);
+  }
+
+  PublicationData generatePublicationData(AltBlockTree& tree,
+                                          const AltBlock& endorsed,
                                           uint256 stateRoot = uint256()) {
     PublicationData pubData;
     pubData.payoutInfo = getPayoutInfo();
     pubData.identifier = altparam.getIdentifier();
-    pubData.header = block.toRaw();
+    pubData.header = endorsed.toRaw();
 
-    auto* prev = alttree.getBlockIndex(block.previousBlock);
+    const auto* prev = tree.getBlockIndex(endorsed.previousBlock);
     auto c = AuthenticatedContextInfoContainer::createFromPrevious(
         stateRoot, prev, altparam);
-    WriteStream w;
-    c.toVbkEncoding(w);
-    pubData.contextInfo = w.data();
-
-    // pubData.header should contain bytes of "topLevelMerkleRoot", otherwise it
-    // won't pass stateless validation.
-    // so we insert it after actual 'header' in pubData.header.
-    auto topLevelMerkleRoot = c.getTopLevelMerkleRoot();
-    pubData.header.insert(pubData.header.end(),
-                          topLevelMerkleRoot.begin(),
-                          topLevelMerkleRoot.end());
+    pubData.contextInfo = SerializeToVbkEncoding(c);
 
     return pubData;
   }
@@ -414,7 +407,7 @@ inline void validateAlttreeIndexState(AltBlockTree& tree,
 
   std::vector<CommandGroup> commands;
   ValidationState state;
-  ASSERT_TRUE(payloadsProvider.getCommands(
+  EXPECT_NO_THROW(payloadsProvider.getPayloadsReader().getCommands(
       tree, *tree.getBlockIndex(containingHash), commands, state))
       << state.toString();
 

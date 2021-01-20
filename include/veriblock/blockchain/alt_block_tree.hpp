@@ -73,7 +73,7 @@ struct AltBlockTree : public BaseBlockTree<AltBlock> {
    * @return true in success, false if block is invalid.
    * @ingroup api
    */
-  bool bootstrap(ValidationState& state);
+  VBK_CHECK_RETURN bool bootstrap(ValidationState& state);
 
   /**
    * Validate and add ALT block header to AltBlockTree.
@@ -82,7 +82,8 @@ struct AltBlockTree : public BaseBlockTree<AltBlock> {
    * @return true if block is valid, and added; false otherwise.
    * @ingroup api
    */
-  bool acceptBlockHeader(const AltBlock& block, ValidationState& state);
+  VBK_CHECK_RETURN bool acceptBlockHeader(const AltBlock& block,
+                                          ValidationState& state);
 
   /**
    * Attach "block body" - PopData to block header, which already exists in
@@ -95,6 +96,9 @@ struct AltBlockTree : public BaseBlockTree<AltBlock> {
    * @invariant must not be executed twice on the same block
    * @invariant must not be executed on bootstrap block
    * @invariant PopData must be statelessly validated before passing it here
+   *
+   * @throws StateCorruptedException when we detect state corruption and we can
+   * not recover.
    *
    * @param[in] block hash of block where to add the block body
    * @param[in] payloads all POP payloads stored in this block
@@ -152,7 +156,8 @@ struct AltBlockTree : public BaseBlockTree<AltBlock> {
    * and can not be used. Tip: ask user to run with '-reindex'.
    * @ingroup api
    */
-  bool loadBlock(const index_t& index, ValidationState& state) override;
+  VBK_CHECK_RETURN bool loadBlock(const index_t& index,
+                                  ValidationState& state) override;
 
   /**
    * After all blocks loaded, efficiently set current tip.
@@ -161,7 +166,8 @@ struct AltBlockTree : public BaseBlockTree<AltBlock> {
    * @return true on success, false otherwise
    * @ingroup api
    */
-  bool loadTip(const hash_t& hash, ValidationState& state) override;
+  VBK_CHECK_RETURN bool loadTip(const hash_t& hash,
+                                ValidationState& state) override;
 
   /**
    * Efficiently compares current tip (A) and any other block (B).
@@ -196,9 +202,15 @@ struct AltBlockTree : public BaseBlockTree<AltBlock> {
    * @invariant if neither chain wins, A stays applied.
    * @invariant if chain B wins, the tree automatically switches to chain B (it
    * becomes the tip)
+   *
+   * @throws StateCorruptedException when we detect state corruption and we can
+   * not recover.
+   *
+   * @warning Operation can be expensive for long forks.
    * @ingroup api
    */
-  int comparePopScore(const AltBlock::hash_t& A, const AltBlock::hash_t& B);
+  VBK_CHECK_RETURN int comparePopScore(const AltBlock::hash_t& A,
+                                       const AltBlock::hash_t& B);
 
   /**
    * Switch AltBlockTree from the current tip to different block, while doing
@@ -215,10 +227,12 @@ struct AltBlockTree : public BaseBlockTree<AltBlock> {
    * applied
    * @invariant both the current and new chains are fully valid; full validation
    * of [genesis .. to] is a side effect
-   * @warning Expensive operation.
+   * @warning Expensive operation when we need to do long reorgs.
+   * @throws StateCorruptedException when we detect state corruption and we can
+   * not recover.
    * @ingroup api
    */
-  bool setState(index_t& to, ValidationState& state) override;
+  VBK_CHECK_RETURN bool setState(index_t& to, ValidationState& state) override;
   //! @overload
   using base::setState;
 

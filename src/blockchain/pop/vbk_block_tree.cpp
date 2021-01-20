@@ -151,16 +151,12 @@ void VbkBlockTree::unsafelyRemovePayload(index_t& index,
   }
 
   bool isApplied = activeChain_.contains(&index);
-
   if (isApplied) {
     ValidationState dummy;
     std::vector<CommandGroup> cmdGroups;
-    bool success =
-        payloadsProvider_.getCommands(*this, index, cmdGroups, dummy);
-    VBK_ASSERT_MSG(success,
-                   "failed to load commands from block=%s, reason=%s",
-                   index.toPrettyString(),
-                   dummy.toString());
+    payloadsProvider_.getPayloadsReader().getCommands(
+        *this, index, cmdGroups, dummy);
+
     auto group_it = std::find_if(
         cmdGroups.begin(), cmdGroups.end(), [&](CommandGroup& group) {
           return group.id == pid;
@@ -201,7 +197,7 @@ bool VbkBlockTree::validateBTCContext(const VbkBlockTree::payloads_t& vtb,
                             : firstBlock.getHash();
 
   auto* connectingIndex = btc().getBlockIndex(connectingHash);
-  if (!connectingIndex) {
+  if (connectingIndex == nullptr) {
     VBK_LOG_DEBUG("Could not find block that payload %s needs to connect to",
                   vtb.toPrettyString());
     return state.Invalid("bad-prev-block",
@@ -242,11 +238,9 @@ bool VbkBlockTree::addPayloadToAppliedBlock(index_t& index,
 
   // load commands from block
   std::vector<CommandGroup> cmdGroups;
-  bool success = payloadsProvider_.getCommands(*this, index, cmdGroups, state);
-  VBK_ASSERT_MSG(success,
-                 "failed to load commands from block=%s, reason=%s",
-                 index.toPrettyString(),
-                 state.toString());
+  payloadsProvider_.getPayloadsReader().getCommands(
+      *this, index, cmdGroups, state);
+
   auto group_it = std::find_if(
       cmdGroups.begin(), cmdGroups.end(), [&](CommandGroup& group) {
         return group.id == pid;
@@ -284,12 +278,12 @@ bool VbkBlockTree::addPayloads(const VbkBlock::hash_t& hash,
   }
 
   auto* index = VbkTree::getBlockIndex(hash);
-  if (!index) {
+  if (index == nullptr) {
     return state.Invalid(block_t::name() + "-bad-containing",
                          "Can not find VTB containing block: " + hash.toHex());
   }
 
-  if (!index->pprev) {
+  if (index->pprev == nullptr) {
     return state.Invalid(block_t::name() + "-bad-containing-prev",
                          "It is forbidden to add payloads to bootstrap block");
   }
@@ -401,14 +395,14 @@ void VbkBlockTree::removeSubtree(VbkBlockTree::index_t& toRemove) {
 
 VbkBlockTree::VbkBlockTree(const VbkChainParams& vbkp,
                            const BtcChainParams& btcp,
-                           PayloadsProvider& storagePayloads,
+                           PayloadsProvider& payloadsProvider,
                            PayloadsIndex& payloadsIndex)
     : VbkTree(vbkp),
       cmp_(std::make_shared<BtcTree>(btcp),
            vbkp,
-           storagePayloads,
+           payloadsProvider,
            payloadsIndex),
-      payloadsProvider_(storagePayloads),
+      payloadsProvider_(payloadsProvider),
       payloadsIndex_(payloadsIndex) {}
 
 bool VbkBlockTree::loadTip(const hash_t& hash, ValidationState& state) {
@@ -419,7 +413,7 @@ bool VbkBlockTree::loadTip(const hash_t& hash, ValidationState& state) {
   auto* tip = activeChain_.tip();
   VBK_ASSERT(tip);
   appliedBlockCount = 0;
-  while (tip) {
+  while (tip != nullptr) {
     tip->setFlag(BLOCK_ACTIVE);
     ++appliedBlockCount;
     tip->raiseValidity(BLOCK_CAN_BE_APPLIED);

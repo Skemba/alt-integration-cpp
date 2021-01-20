@@ -9,7 +9,8 @@
 #include <vector>
 #include <veriblock/blockchain/alt_block_tree.hpp>
 #include <veriblock/logger.hpp>
-#include <veriblock/storage/block_batch_adaptor.hpp>
+#include <veriblock/pop_context.hpp>
+#include <veriblock/storage/block_provider.hpp>
 #include <veriblock/validation_state.hpp>
 
 namespace altintegration {
@@ -46,23 +47,38 @@ bool LoadTree(BlockTreeT& tree,
   return tree.loadTip(tiphash, state);
 }
 
-//! Save blocks and tip to batch
 template <typename BlockTreeT>
-void SaveTree(BlockTreeT& tree, BlockBatchAdaptor& batch) {
+bool SaveTree(
+    BlockTreeT& tree,
+    details::GenericBlockWriter<typename BlockTreeT::block_t>& writer,
+    ValidationState& state) {
   for (auto& block : tree.getBlocks()) {
     auto& index = block.second;
     if (index->isDirty()) {
       index->unsetDirty();
-      batch.writeBlock(*index);
+      if (!writer.writeBlock(*index)) {
+        return state.Invalid(
+            "bad-provider",
+            fmt::format("cannot write block into the block provider, block: %s",
+                        index->toPrettyString()));
+      }
     }
   }
 
-  batch.writeTip(*tree.getBestChain().tip());
+  if (!writer.writeTip(*tree.getBestChain().tip())) {
+    return state.Invalid(
+        "bad-provider",
+        fmt::format("cannot write tip into the block provider, tip: %s",
+                    tree.getBestChain().tip()->toPrettyString()));
+  }
+  return true;
 }
 
 struct AltBlockTree;
 
-void SaveAllTrees(AltBlockTree& tree, BlockBatchAdaptor& batch);
+bool SaveAllTrees(PopContext& context, ValidationState& state);
+
+bool LoadAllTrees(PopContext& context, ValidationState& state);
 
 }  // namespace altintegration
 

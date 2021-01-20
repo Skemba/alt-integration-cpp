@@ -3,12 +3,12 @@
 // Distributed under the MIT software license, see the accompanying
 // file LICENSE or http://www.opensource.org/licenses/mit-license.php.
 
-#include <stdio.h>
+#include "mock_miner.hpp"
 
+#include <cstdio>
 #include <fstream>
 
 #include "bytestream.hpp"
-#include "mock_miner.hpp"
 #include "validation_state.hpp"
 #include "veriblock/c/mock_miner.h"
 
@@ -19,7 +19,7 @@ MockMiner_t* VBK_NewMockMiner() {
 }
 
 void VBK_FreeMockMiner(MockMiner_t* miner) {
-  if (miner) {
+  if (miner != nullptr) {
     delete miner;
     miner = nullptr;
   }

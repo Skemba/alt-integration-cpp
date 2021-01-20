@@ -13,7 +13,8 @@ struct SaveLoadTreeTest : public PopTestFixture, public testing::Test {
   SaveLoadTreeTest() {
     alttree2.btc().bootstrapWithGenesis(GetRegTestBtcBlock(), state);
     alttree2.vbk().bootstrapWithGenesis(GetRegTestVbkBlock(), state);
-    alttree2.bootstrap(state);
+    bool ok = alttree2.bootstrap(state);
+    VBK_ASSERT_MSG(ok, "Can not bootstrap ALT tree: %s", state.toString());
 
     chain.push_back(altparam.getBootstrapBlock());
     createEndorsedAltChain(20, 3);
@@ -25,8 +26,13 @@ struct SaveLoadTreeTest : public PopTestFixture, public testing::Test {
       AltBlockTree(altparam, vbkparam, btcparam, payloadsProvider);
 
   void save() {
-    auto adaptor = InmemBlockBatch(blockStorage);
-    SaveAllTrees(alttree, adaptor);
+    auto writer = InmemBlockWriter(blockStorage);
+    ASSERT_TRUE(SaveTree(
+        alttree.vbk(), (details::GenericBlockWriter<VbkBlock>&)writer, state));
+    ASSERT_TRUE(SaveTree(
+        alttree.btc(), (details::GenericBlockWriter<BtcBlock>&)writer, state));
+    ASSERT_TRUE(SaveTree(
+        alttree, (details::GenericBlockWriter<AltBlock>&)writer, state));
   }
 
   bool load() {
@@ -65,8 +71,7 @@ TEST_F(SaveLoadTreeTest, ReloadWithoutDuplicates_test) {
   AltBlock containingBlock = generateNextBlock(chain.back());
   chain.push_back(containingBlock);
 
-  PopData popData =
-      generateAltPayloads({tx}, GetRegTestVbkBlock().getHash());
+  PopData popData = generateAltPayloads({tx}, GetRegTestVbkBlock().getHash());
   ASSERT_EQ(popData.atvs.size(), 1);
   ASSERT_EQ(popData.vtbs.size(), 0);
 
@@ -108,8 +113,7 @@ TEST_F(SaveLoadTreeTest, ReloadWithoutDuplicates_test2) {
   AltBlock containingBlock = generateNextBlock(chain.back());
   chain.push_back(containingBlock);
 
-  PopData popData =
-      generateAltPayloads({tx}, GetRegTestVbkBlock().getHash());
+  PopData popData = generateAltPayloads({tx}, GetRegTestVbkBlock().getHash());
   ASSERT_EQ(popData.atvs.size(), 1);
   ASSERT_EQ(popData.vtbs.size(), 0);
 
@@ -147,8 +151,7 @@ TEST_F(SaveLoadTreeTest, ReloadWithoutDuplicates_test3) {
   AltBlock containingBlock = generateNextBlock(chain.back());
   chain.push_back(containingBlock);
 
-  PopData popData =
-      generateAltPayloads({tx}, GetRegTestVbkBlock().getHash());
+  PopData popData = generateAltPayloads({tx}, GetRegTestVbkBlock().getHash());
   ASSERT_EQ(popData.atvs.size(), 1);
   ASSERT_EQ(popData.vtbs.size(), 0);
 

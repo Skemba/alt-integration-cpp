@@ -3,13 +3,11 @@
 // Distributed under the MIT software license, see the accompanying
 // file LICENSE or http://www.opensource.org/licenses/mit-license.php.
 
-#include "veriblock/blockchain/alt_block_tree.hpp"
-
 #include <veriblock/reversed_range.hpp>
-#include <veriblock/storage/block_batch_adaptor.hpp>
 
 #include "veriblock/algorithm.hpp"
 #include "veriblock/alt-util.hpp"
+#include "veriblock/blockchain/alt_block_tree.hpp"
 #include "veriblock/command_group_cache.hpp"
 #include "veriblock/entities/context_info_container.hpp"
 
@@ -159,7 +157,7 @@ void AltBlockTree::acceptBlock(index_t& index, const PopData& payloads) {
   if (index.pprev->isConnected()) {
     ValidationState dummy;
     connectBlock(index, dummy);
-  };
+  }
 }
 
 void AltBlockTree::setPayloads(index_t& index, const PopData& payloads) {
@@ -194,6 +192,8 @@ void AltBlockTree::setPayloads(index_t& index, const PopData& payloads) {
   commitPayloadsIds<VbkBlock>(index, payloads.context, payloadsIndex_);
   commitPayloadsIds<VTB>(index, payloads.vtbs, payloadsIndex_);
   commitPayloadsIds<ATV>(index, payloads.atvs, payloadsIndex_);
+
+  payloadsProvider_.getPayloadsWriter().writePayloads(payloads);
 
   // we successfully added this block payloads
   index.setFlag(BLOCK_HAS_PAYLOADS);
@@ -606,7 +606,7 @@ bool AltBlockTree::loadTip(const AltBlockTree::hash_t& hash,
   auto* tip = activeChain_.tip();
   VBK_ASSERT(tip);
   appliedBlockCount = 0;
-  while (tip) {
+  while (tip != nullptr) {
     tip->setFlag(BLOCK_ACTIVE);
     ++appliedBlockCount;
     tip->raiseValidity(BLOCK_CAN_BE_APPLIED);

@@ -3,29 +3,48 @@
 // Distributed under the MIT software license, see the accompanying
 // file LICENSE or http://www.opensource.org/licenses/mit-license.php.
 #include <veriblock/blockchain/alt_block_tree.hpp>
+#include <veriblock/exceptions/state_corrupted.hpp>
 #include <veriblock/storage/payloads_provider.hpp>
 
 namespace altintegration {
 
-bool PayloadsProvider::getCommands(AltBlockTree& tree,
-                                   const BlockIndex<AltBlock>& block,
-                                   std::vector<CommandGroup>& out,
-                                   ValidationState& state) {
-  std::vector<ATV> atvs;
-  atvs.reserve(block.getPayloadIds<ATV>().size());
-  std::vector<VTB> vtbs;
-  vtbs.reserve(block.getPayloadIds<VTB>().size());
-  std::vector<VbkBlock> vbks;
-  vbks.reserve(block.getPayloadIds<VbkBlock>().size());
+void details::PayloadsReader::getCommands(AltBlockTree& tree,
+                                          const BlockIndex<AltBlock>& block,
+                                          std::vector<CommandGroup>& out,
+                                          ValidationState& state) {
+  const auto& atv_ids = block.getPayloadIds<ATV>();
+  const auto& vtb_ids = block.getPayloadIds<VTB>();
+  const auto& vbk_ids = block.getPayloadIds<VbkBlock>();
 
-  if (!getVBKs(block.getPayloadIds<VbkBlock>(), vbks, state)) {
-    return false;
+  std::vector<ATV> atvs;
+  atvs.reserve(atv_ids.size());
+  std::vector<VTB> vtbs;
+  vtbs.reserve(vtb_ids.size());
+  std::vector<VbkBlock> vbks;
+  vbks.reserve(vbk_ids.size());
+
+  for (size_t i = 0; i < atv_ids.size(); ++i) {
+    ATV val;
+    if (!getATV(atv_ids[i], val, state)) {
+      throw StateCorruptedException(block, state);
+    }
+    atvs.push_back(val);
   }
-  if (!getVTBs(block.getPayloadIds<VTB>(), vtbs, state)) {
-    return false;
+
+  for (size_t i = 0; i < vtb_ids.size(); ++i) {
+    VTB val;
+    if (!getVTB(vtb_ids[i], val, state)) {
+      throw StateCorruptedException(block, state);
+    }
+    vtbs.push_back(val);
   }
-  if (!getATVs(block.getPayloadIds<ATV>(), atvs, state)) {
-    return false;
+
+  for (size_t i = 0; i < vbk_ids.size(); ++i) {
+    VbkBlock val;
+    if (!getVBK(vbk_ids[i], val, state)) {
+      throw StateCorruptedException(block, state);
+    }
+    vbks.push_back(val);
   }
 
   auto containingHash = block.getHash();
@@ -35,24 +54,32 @@ bool PayloadsProvider::getCommands(AltBlockTree& tree,
       tree, vbks, containingHash, out);
   vectorPopToCommandGroup<AltBlockTree, VTB>(tree, vtbs, containingHash, out);
   vectorPopToCommandGroup<AltBlockTree, ATV>(tree, atvs, containingHash, out);
-
-  return true;
 }
 
-bool PayloadsProvider::getCommands(VbkBlockTree& tree,
-                                   const BlockIndex<VbkBlock>& block,
-                                   std::vector<CommandGroup>& out,
-                                   ValidationState& state) {
-  std::vector<VTB> vtbs;
-  vtbs.reserve(block.getPayloadIds<VTB>().size());
+void details::PayloadsReader::getCommands(VbkBlockTree& tree,
+                                          const BlockIndex<VbkBlock>& block,
+                                          std::vector<CommandGroup>& out,
+                                          ValidationState& state) {
+  const auto& vtb_ids = block.getPayloadIds<VTB>();
 
-  if (!getVTBs(block.getPayloadIds<VTB>(), vtbs, state)) {
-    return false;
+  std::vector<VTB> vtbs;
+  vtbs.reserve(vtb_ids.size());
+
+  for (size_t i = 0; i < vtb_ids.size(); ++i) {
+    VTB val;
+    if (!getVTB(vtb_ids[i], val, state)) {
+      throw StateCorruptedException(block, state);
+    }
+    vtbs.push_back(val);
   }
 
   auto containingHash = block.getHash().asVector();
   vectorPopToCommandGroup<VbkBlockTree, VTB>(tree, vtbs, containingHash, out);
+}
 
-  return true;
+void details::PayloadsWriter::writePayloads(const PopData& payloads) {
+  writePayloads(payloads.atvs);
+  writePayloads(payloads.vtbs);
+  writePayloads(payloads.context);
 }
 }  // namespace altintegration
